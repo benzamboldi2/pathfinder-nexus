@@ -43,8 +43,8 @@ const App = () => {
       sidebar={
         <div className="sidebar-content">
           <header>
-            <h1>Pathfinder Nexus</h1>
-            <p>Prototype shell for advanced routing experiments.</p>
+            <h1>Meridian</h1>
+            <p>The modern mapping app</p>
           </header>
           <SearchBar onSearch={handleSearch} />
           <LayerToggle activeLayer={activeLayer} onChange={setActiveLayer} />

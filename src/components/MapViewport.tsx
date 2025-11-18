@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import * as maptilersdk from '@maptiler/sdk';
+import '@maptiler/sdk/dist/maptiler-sdk.css';
 import type { MapLayer, Viewport } from '@/types/map';
 
 interface MapViewportProps {
@@ -8,41 +8,41 @@ interface MapViewportProps {
   activeLayer: MapLayer;
 }
 
-const MAPTILER_API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
+// Set the API key globally for Maptiler SDK
+maptilersdk.config.apiKey = import.meta.env.VITE_MAPTILER_API_KEY;
 
-const getMapStyle = (layer: MapLayer): string => {
-  const baseUrl = 'https://api.maptiler.com/maps';
-
+const getMapStyle = (layer: MapLayer): maptilersdk.ReferenceMapStyle | maptilersdk.MapStyleVariant => {
   switch (layer) {
     case 'terrain':
-      return `${baseUrl}/outdoor-v2/style.json?key=${MAPTILER_API_KEY}`;
+      return maptilersdk.MapStyle.OUTDOOR;
     case 'traffic':
-      return `${baseUrl}/streets-v2/style.json?key=${MAPTILER_API_KEY}`;
+      return maptilersdk.MapStyle.STREETS;
     case 'transit':
-      return `${baseUrl}/basic-v2/style.json?key=${MAPTILER_API_KEY}`;
+      return maptilersdk.MapStyle.BASIC;
     default:
-      return `${baseUrl}/streets-v2/style.json?key=${MAPTILER_API_KEY}`;
+      return maptilersdk.MapStyle.STREETS;
   }
 };
 
 const MapViewport = ({ viewport, activeLayer }: MapViewportProps) => {
   const { latitude, longitude, zoom } = viewport;
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
+  const map = useRef<maptilersdk.Map | null>(null);
   const [currentCoords, setCurrentCoords] = useState({ lat: latitude, lng: longitude, zoom });
 
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    map.current = new maplibregl.Map({
+    map.current = new maptilersdk.Map({
       container: mapContainer.current,
-      style: getMapStyle(activeLayer),
+      style: getMapStyle(activeLayer) as any,
       center: [longitude, latitude],
-      zoom: zoom,
+      zoom,
+      navigationControl: false,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.current.addControl(new maptilersdk.NavigationControl(), 'top-right');
 
     map.current.on('move', () => {
       if (!map.current) return;
@@ -60,12 +60,13 @@ const MapViewport = ({ viewport, activeLayer }: MapViewportProps) => {
         map.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update map style when layer changes
   useEffect(() => {
     if (!map.current) return;
-    map.current.setStyle(getMapStyle(activeLayer));
+    map.current.setStyle(getMapStyle(activeLayer) as any);
   }, [activeLayer]);
 
   // Update map position when viewport prop changes
@@ -73,7 +74,7 @@ const MapViewport = ({ viewport, activeLayer }: MapViewportProps) => {
     if (!map.current) return;
     map.current.flyTo({
       center: [longitude, latitude],
-      zoom: zoom,
+      zoom,
     });
   }, [latitude, longitude, zoom]);
 

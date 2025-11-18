@@ -5,6 +5,7 @@ import MapViewport from './components/MapViewport';
 import LayerToggle from './components/LayerToggle';
 import InfoPanel from './components/InfoPanel';
 import { featuredDestinations } from './lib/placeholderData';
+import { geocodeLocation } from './lib/geocoding';
 import type { MapLayer, SearchResult, Viewport } from './types/map';
 
 type Theme = 'light' | 'dark';
@@ -18,6 +19,8 @@ const App = () => {
   });
   const [results, setResults] = useState<SearchResult[]>(featuredDestinations);
   const [theme, setTheme] = useState<Theme>('light');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -27,18 +30,37 @@ const App = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  const handleSearch = (query: string) => {
-    if (!query) {
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+
+    if (!query.trim()) {
       setResults(featuredDestinations);
       return;
     }
 
-    const lowered = query.toLowerCase();
-    const filtered = featuredDestinations.filter((destination) =>
-      destination.name.toLowerCase().includes(lowered)
-    );
+    setIsSearching(true);
 
-    setResults(filtered);
+    try {
+      const geocodedResults = await geocodeLocation(query, { limit: 5 });
+
+      if (geocodedResults.length > 0) {
+        setResults(geocodedResults);
+        // Automatically navigate to the first result
+        const firstResult = geocodedResults[0];
+        setViewport({
+          latitude: firstResult.latitude,
+          longitude: firstResult.longitude,
+          zoom: 14,
+        });
+      } else {
+        setResults([]);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      setResults([]);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleFocus = (result: SearchResult) => {
@@ -85,8 +107,12 @@ const App = () => {
           <SearchBar onSearch={handleSearch} />
           <LayerToggle activeLayer={activeLayer} onChange={setActiveLayer} />
           <section>
-            <h2>Featured destinations</h2>
-            <InfoPanel results={results} onFocus={handleFocus} />
+            <h2>{searchQuery ? 'Search results' : 'Featured destinations'}</h2>
+            {isSearching ? (
+              <p className="search-loading">Searching...</p>
+            ) : (
+              <InfoPanel results={results} onFocus={handleFocus} />
+            )}
           </section>
         </div>
       }
